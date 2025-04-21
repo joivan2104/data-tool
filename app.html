@@ -106,8 +106,11 @@
     }
 
     // 初始載入所有資料（可依需求加條件）
+    const groupInput = document.getElementById("groupName");
     fetch(API)
       .then(res => res.json())
+      .then(data => {
+        localData = data.filter(d => d.群組 === groupInput.value.trim());
       .then(data => {
         localData = data;
         renderTable(localData);
