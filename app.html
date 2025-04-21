@@ -55,6 +55,10 @@
     }
 
     function deleteGroup(name) {
+  if (role !== "admin") {
+    alert("您沒有刪除群組的權限！");
+    return;
+  }
       if (confirm(`確定要刪除「${name}」？此操作無法還原。`)) {
         groups = groups.filter(g => g.name !== name);
         if (currentGroup && currentGroup.name === name) {
