@@ -186,6 +186,10 @@
     }
 
     function deleteEntry(index) {
+  if (role !== "admin") {
+    alert("❌ 您沒有刪除權限！");
+    return;
+  }
       if (role !== "admin") {
         alert("您沒有刪除權限");
         return;
