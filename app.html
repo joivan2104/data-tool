@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>資料建檔工具</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+    input, button { margin: 6px 0; padding: 8px; width: 100%; box-sizing: border-box; font-size: 16px; }
+    button {
+      background-color: #007bff; color: white; border: none; border-radius: 4px;
+      cursor: pointer; padding: 6px 12px; font-size: 14px; margin: 4px 4px 4px 0; width: auto;
+    }
+    button:hover { background-color: #0056b3; }
+    label { display: block; margin-top: 12px; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: center; font-size: 14px; }
+    .delete-btn { background-color: #dc3545; }
+    .edit-btn { background-color: #ffc107; color: black; }
+    .print-btn { background-color: #6c757d; color: white; }
+    .summary { font-weight: bold; text-align: right; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>📋 資料建檔工具</h1>
+  <button onclick="createGroup()">➕ 新增資料名稱</button>
+  <div id="group-list" style="margin-top: 20px;"></div>
+  <div id="entry-form" style="margin-top: 30px;"></div>
+
+  <script>
+    const role = sessionStorage.getItem("role");
+    if (!role) {
+      alert("請先登入！");
+      location.href = "index.html";
+    }
+
+    let groups = JSON.parse(localStorage.getItem("groups") || "[]");
+    let currentGroup = null;
+    let lastName = "";
+    let editingIndex = null;
+
+    function saveToStorage() {
+      localStorage.setItem("groups", JSON.stringify(groups));
+    }
+
+    function createGroup() {
+      const name = prompt("輸入資料名稱：");
+      if (name && !groups.find(g => g.name === name)) {
+        groups.push({ name, entries: [] });
+        saveToStorage();
+        renderGroups();
+      }
+    }
+
+    function deleteGroup(name) {
+      if (confirm(`確定要刪除「${name}」？此操作無法還原。`)) {
+        groups = groups.filter(g => g.name !== name);
+        if (currentGroup && currentGroup.name === name) {
+          currentGroup = null;
+          document.getElementById("entry-form").innerHTML = "";
+        }
+        saveToStorage();
+        renderGroups();
+      }
+    }
+
+    function renderGroups() {
+      const list = document.getElementById("group-list");
+      list.innerHTML = "";
+      groups.forEach(group => {
+        const div = document.createElement("div");
+        div.innerHTML = `
+          <button onclick="selectGroup('${group.name}')">${group.name}</button>
+          <button onclick="exportGroup('${group.name}')" style="background-color: #28a745; margin-left: 5px;">匯出 Excel</button>
+          <button onclick="printGroup('${group.name}')" class="print-btn" style="margin-left: 5px;">🖨 列印</button>
+          <button onclick="deleteGroup('${group.name}')" style="background-color: #dc3545; margin-left: 5px;">❌ 刪除</button>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function selectGroup(name) {
+      currentGroup = groups.find(g => g.name === name);
+      editingIndex = null;
+      renderForm();
+    }
+
+    function renderForm() {
+      const form = document.getElementById("entry-form");
+      form.innerHTML = `<h2>${currentGroup.name} - ${editingIndex !== null ? "編輯資料" : "新增資料"}</h2>`;
+
+      const today = new Date();
+      const dateStr = `${today.getMonth() + 1}/${today.getDate()}`;
+
+      const dateLabel = document.createElement("label");
+      dateLabel.textContent = `日期：${dateStr}`;
+      form.appendChild(dateLabel);
+
+      const fields = ["名稱", "總重", "板重", "件數", "長", "寬", "高", "備註"];
+      fields.forEach(field => {
+        const label = document.createElement("label");
+        label.textContent = field + "：";
+        const input = document.createElement("input");
+        input.type = "text";
+        input.id = field;
+        input.placeholder = `請輸入 ${field}`;
+        form.appendChild(label);
+        form.appendChild(input);
+      });
+
+      if (editingIndex !== null) {
+        const entry = currentGroup.entries[editingIndex];
+        fields.forEach(f => {
+          document.getElementById(f).value = entry[f] || "";
+        });
+      } else {
+        document.getElementById("名稱").value = lastName;
+      }
+
+      const button = document.createElement("button");
+      button.textContent = editingIndex !== null ? "✔ 更新" : "📌 建立";
+      button.onclick = editingIndex !== null ? updateEntry : handleSubmit;
+      form.appendChild(button);
+
+      renderTable();
+    }
+
+    function handleSubmit() {
+      const today = new Date();
+      const dateStr = `${today.getMonth() + 1}/${today.getDate()}`;
+      const name = document.getElementById("名稱").value;
+      const 長 = parseFloat(document.getElementById("長").value) || 0;
+      const 寬 = parseFloat(document.getElementById("寬").value) || 0;
+      const 高 = parseFloat(document.getElementById("高").value) || 0;
+      const 總重 = parseFloat(document.getElementById("總重").value) || 0;
+      const 板重 = parseFloat(document.getElementById("板重").value) || 0;
+      const 淨重 = +(總重 - 板重).toFixed(4);
+      const CBM = +((長 * 寬 * 高) / 1000000).toFixed(4);
+      lastName = name;
+
+      const entry = {
+        日期: dateStr,
+        名稱: name,
+        總重, 板重, 淨重,
+        件數: document.getElementById("件數").value,
+        長, 寬, 高,
+        備註: document.getElementById("備註").value,
+        CBM
+      };
+
+      currentGroup.entries.push(entry);
+      saveToStorage();
+      renderForm();
+    }
+
+    function updateEntry() {
+      const name = document.getElementById("名稱").value;
+      const 長 = parseFloat(document.getElementById("長").value) || 0;
+      const 寬 = parseFloat(document.getElementById("寬").value) || 0;
+      const 高 = parseFloat(document.getElementById("高").value) || 0;
+      const 總重 = parseFloat(document.getElementById("總重").value) || 0;
+      const 板重 = parseFloat(document.getElementById("板重").value) || 0;
+      const 淨重 = +(總重 - 板重).toFixed(4);
+      const CBM = +((長 * 寬 * 高) / 1000000).toFixed(4);
+      lastName = name;
+
+      currentGroup.entries[editingIndex] = {
+        ...currentGroup.entries[editingIndex],
+        名稱: name,
+        總重, 板重, 淨重,
+        件數: document.getElementById("件數").value,
+        長, 寬, 高,
+        備註: document.getElementById("備註").value,
+        CBM
+      };
+
+      editingIndex = null;
+      saveToStorage();
+      renderForm();
+    }
+
+    function deleteEntry(index) {
+      if (role !== "admin") {
+        alert("您沒有刪除權限");
+        return;
+      }
+      if (confirm("確定要刪除此筆資料？")) {
+        currentGroup.entries.splice(index, 1);
+        saveToStorage();
+        renderForm();
+      }
+    }
+
+    function editEntry(index) {
+      editingIndex = index;
+      renderForm();
+    }
+
+    function renderTable() {
+      const form = document.getElementById("entry-form");
+      if (currentGroup.entries.length === 0) return;
+
+      const table = document.createElement("table");
+      const headers = ["日期", "名稱", "總重", "板重", "淨重", "件數", "長", "寬", "高", "備註", "CBM", "操作"];
+      const thead = document.createElement("thead");
+      const trHead = document.createElement("tr");
+      headers.forEach(h => {
+        const th = document.createElement("th");
+        th.textContent = h;
+        trHead.appendChild(th);
+      });
+      thead.appendChild(trHead);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+      currentGroup.entries.forEach((entry, i) => {
+        const tr = document.createElement("tr");
+        headers.slice(0, -1).forEach(h => {
+          const td = document.createElement("td");
+          td.textContent = entry[h] || "";
+          tr.appendChild(td);
+        });
+
+        const tdActions = document.createElement("td");
+
+        const editBtn = document.createElement("button");
+        editBtn.className = "edit-btn";
+        editBtn.textContent = "修改";
+        editBtn.onclick = () => editEntry(i);
+        tdActions.appendChild(editBtn);
+
+        if (role === "admin") {
+          const delBtn = document.createElement("button");
+          delBtn.className = "delete-btn";
+          delBtn.textContent = "刪除";
+          delBtn.onclick = () => deleteEntry(i);
+          tdActions.appendChild(delBtn);
+        }
+
+        tr.appendChild(tdActions);
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+      form.appendChild(table);
+
+      const summary = document.createElement("div");
+      summary.className = "summary";
+      const totalCBM = currentGroup.entries.reduce((sum, e) => sum + (e.CBM || 0), 0).toFixed(4);
+      summary.textContent = `📦 CBM 總合計：${totalCBM}`;
+      form.appendChild(summary);
+    }
+
+    function exportGroup(name) {
+      const group = groups.find(g => g.name === name);
+      const ws = XLSX.utils.json_to_sheet(group.entries);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "資料");
+      const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      const blob = new Blob([wbout], { type: "application/octet-stream" });
+      saveAs(blob, `${name}.xlsx`);
+    }
+
+    function printGroup(name) {
+      const group = groups.find(g => g.name === name);
+      const printWindow = window.open("", "列印視窗");
+      const tableHtml = `
+        <html>
+        <head>
+          <title>${name} - 列印</title>
+          <style>
+            body { font-family: sans-serif; padding: 20px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+          </style>
+        </head>
+        <body>
+          <h2>${name}</h2>
+          <table>
+            <thead><tr>${Object.keys(group.entries[0] || {}).map(h => `<th>${h}</th>`).join("")}</tr></thead>
+            <tbody>${group.entries.map(e => `<tr>${Object.values(e).map(v => `<td>${v}</td>`).join("")}</tr>`).join("")}</tbody>
+          </table>
+        </body>
+        </html>
+      `;
+      printWindow.document.write(tableHtml);
+      printWindow.document.close();
+      printWindow.print();
+    }
+
+    renderGroups();
+  </script>
+</body>
+</html>
