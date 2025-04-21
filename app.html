@@ -2,82 +2,87 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <title>雲端資料建檔工具</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>雲端群組建檔工具</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; }
-    input, button, select { padding: 6px; margin: 4px; }
+    body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: auto; }
+    input, button { margin: 6px 0; padding: 8px; width: 100%; box-sizing: border-box; }
+    button {
+      background-color: #007bff; color: white; border: none; border-radius: 4px;
+      cursor: pointer; padding: 6px 12px; font-size: 14px;
+    }
     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
     th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
-    .edit-btn { background-color: #ffc107; }
     .delete-btn { background-color: #dc3545; color: white; }
+    .edit-btn { background-color: #ffc107; }
   </style>
 </head>
 <body>
-  <h2>☁️ 雲端資料建檔工具</h2>
+  <h2>☁️ 群組建檔工具（即時可改 + 雲端同步）</h2>
   <div>
-    <input id="名稱" placeholder="名稱">
-    <input id="總重" type="number" placeholder="總重">
-    <input id="板重" type="number" placeholder="板重">
-    <input id="件數" type="number" placeholder="件數">
-    <input id="長" type="number" placeholder="長">
-    <input id="寬" type="number" placeholder="寬">
-    <input id="高" type="number" placeholder="高">
-    <input id="備註" placeholder="備註">
-    <button onclick="addRow()">➕ 新增</button>
+    <input id="groupName" placeholder="輸入或選擇群組名稱" list="group-list">
+    <datalist id="group-list"></datalist>
+    <button onclick="loadGroup()">載入群組資料</button>
+  </div>
+  <hr>
+  <div>
+    <input id="名稱" placeholder="名稱" />
+    <input id="總重" placeholder="總重" type="number"/>
+    <input id="板重" placeholder="板重" type="number"/>
+    <input id="件數" placeholder="件數" />
+    <input id="長" placeholder="長" type="number"/>
+    <input id="寬" placeholder="寬" type="number"/>
+    <input id="高" placeholder="高" type="number"/>
+    <input id="備註" placeholder="備註" />
+    <button onclick="addData()">📌 建立</button>
   </div>
   <table id="data-table"></table>
 
   <script>
     const API = "https://script.google.com/macros/s/AKfycbwijAEDzKUEbbt5HxOhCM-dKbDputSfpfgCnmuIVreZ38dY2WAdJ7EvnTcUhLS01vi5/exec";
-    let currentData = [];
+    let currentGroup = "";
 
-    function fetchData() {
+    function loadGroup() {
+      currentGroup = document.getElementById("groupName").value.trim();
+      if (!currentGroup) return alert("請輸入群組名稱");
       fetch(API)
         .then(res => res.json())
         .then(data => {
-          currentData = data.map((d, i) => { d.id = i + 1; return d; });
-          renderTable();
+          const groupData = data.filter(d => d.群組 === currentGroup);
+          renderTable(groupData);
         });
     }
 
-    function renderTable() {
-      const headers = ["群組", "日期", "名稱", "總重", "板重", "淨重", "件數", "長", "寬", "高", "備註", "CBM"];
+    function renderTable(data) {
+      const headers = ["日期", "名稱", "總重", "板重", "淨重", "件數", "長", "寬", "高", "備註", "CBM"];
       const table = document.getElementById("data-table");
       table.innerHTML = "<thead><tr>" + headers.map(h => `<th>${h}</th>`).join("") + "<th>操作</th></tr></thead>";
       const tbody = document.createElement("tbody");
-      currentData.forEach((row, i) => {
+
+      data.forEach((row, index) => {
         const tr = document.createElement("tr");
         headers.forEach(h => {
           const td = document.createElement("td");
-          td.contentEditable = h !== "群組" && h !== "日期";
+          td.contentEditable = h !== "日期";
           td.innerText = row[h] || "";
           td.dataset.field = h;
           tr.appendChild(td);
         });
-        const tdActions = document.createElement("td");
-
+        const tdAction = document.createElement("td");
         const updateBtn = document.createElement("button");
         updateBtn.innerText = "✔ 更新";
         updateBtn.className = "edit-btn";
-        updateBtn.onclick = () => updateRow(i, tr);
-        tdActions.appendChild(updateBtn);
-
-        const delBtn = document.createElement("button");
-        delBtn.innerText = "🗑 刪除";
-        delBtn.className = "delete-btn";
-        delBtn.onclick = () => deleteRow(i);
-        tdActions.appendChild(delBtn);
-
-        tr.appendChild(tdActions);
+        updateBtn.onclick = () => updateRow(tr, index);
+        tdAction.appendChild(updateBtn);
+        tr.appendChild(tdAction);
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
     }
 
-    function addRow() {
+    function addData() {
       const today = new Date();
-      const dateStr = `${today.getMonth() + 1}/${today.getDate()}`;
+      const dateStr = `${today.getMonth()+1}/${today.getDate()}`;
       const 長 = parseFloat(document.getElementById("長").value) || 0;
       const 寬 = parseFloat(document.getElementById("寬").value) || 0;
       const 高 = parseFloat(document.getElementById("高").value) || 0;
@@ -85,14 +90,11 @@
       const 板重 = parseFloat(document.getElementById("板重").value) || 0;
       const 淨重 = +(總重 - 板重).toFixed(4);
       const CBM = +((長 * 寬 * 高)/1000000).toFixed(4);
-
-      const row = {
-        群組: "預設群組",
+      const entry = {
+        群組: currentGroup,
         日期: dateStr,
         名稱: document.getElementById("名稱").value,
-        總重,
-        板重,
-        淨重,
+        總重, 板重, 淨重,
         件數: document.getElementById("件數").value,
         長, 寬, 高,
         備註: document.getElementById("備註").value,
@@ -102,34 +104,23 @@
         method: "POST",
         mode: "no-cors",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(row)
-      }).then(fetchData);
+        body: JSON.stringify(entry)
+      }).then(() => loadGroup());
     }
 
-    function updateRow(index, rowElement) {
-      const cells = rowElement.querySelectorAll("td");
-      const updated = { id: index + 1 };
+    function updateRow(tr, index) {
+      const cells = tr.querySelectorAll("td");
+      const entry = { id: index + 1, 群組: currentGroup };
       cells.forEach(td => {
         const key = td.dataset.field;
-        if (key) updated[key] = td.innerText.trim();
+        if (key) entry[key] = td.innerText;
       });
       fetch(API, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updated)
-      }).then(fetchData);
+        body: JSON.stringify(entry)
+      }).then(() => loadGroup());
     }
-
-    function deleteRow(index) {
-      if (!confirm("確定要刪除這筆資料嗎？")) return;
-      fetch(API, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: index + 1 })
-      }).then(fetchData);
-    }
-
-    fetchData();
   </script>
 </body>
 </html>
