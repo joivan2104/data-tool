@@ -79,6 +79,19 @@
           });
           groups = Object.entries(map).map(([name, entries]) => ({ name, entries }));
           saveToStorage();
+    function createGroup() {
+         const name = prompt("輸入資料名稱：");
+    if (name && !groups.find(g => g.name === name)) {
+    const newGroup = { name, entries: [] };
+    groups.push(newGroup);
+    currentGroup = newGroup; // ✅ 設定目前群組
+    saveToStorage();
+    renderGroups();
+    renderForm(); // ✅ 顯示表單畫面
+  } else {
+    alert("資料名稱已存在或無效");
+  }
+}
           renderGroups();
           alert("✅ 雲端資料已載入！");
         }
