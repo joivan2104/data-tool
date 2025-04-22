@@ -79,50 +79,6 @@
           });
           groups = Object.entries(map).map(([name, entries]) => ({ name, entries }));
           saveToStorage();
-         function createGroup() {
-    const name = prompt("輸入資料名稱：");
-    if (name && !groups.find(g => g.name === name)) {
-      const newGroup = { name, entries: [] };
-      groups.push(newGroup);
-      currentGroup = newGroup; // 設定目前編輯的群組
-      saveToStorage();
-      renderGroups();
-      renderForm(); // 顯示該群組的輸入欄位
-    } else {
-      alert("資料名稱已存在或輸入無效");
-    }
-  }
-
-  function renderGroups() {
-    const list = document.getElementById("group-list");
-    list.innerHTML = "";
-    groups.forEach(group => {
-      const div = document.createElement("div");
-      div.innerHTML = `
-        <button onclick="selectGroup('${group.name}')">${group.name}</button>
-        <button onclick="exportGroup('${group.name}')" style="background-color: #28a745; margin-left: 5px;">匯出 Excel</button>
-        <button onclick="printGroup('${group.name}')" class="print-btn" style="margin-left: 5px;">🖨 列印</button>
-        <button onclick="deleteGroup('${group.name}')" style="background-color: #dc3545; margin-left: 5px;">❌ 刪除</button>
-      `;
-      list.appendChild(div);
-    });
-  }
-
-  function selectGroup(name) {
-    currentGroup = groups.find(g => g.name === name);
-    editingIndex = null;
-    renderForm();
-  }
-
-  // 你的原始程式碼中 renderForm, deleteGroup, exportGroup 等函式保持不變
-  // 已內建的 renderGroups(); 也保留即可
-</script>
-    renderGroups();
-    renderForm(); // ✅ 顯示表單畫面
-  } else {
-    alert("資料名稱已存在或無效");
-  }
-}
           renderGroups();
           alert("✅ 雲端資料已載入！");
         }
@@ -132,11 +88,41 @@
       }
     }
 
-    // createGroup / deleteGroup / renderGroups 與原邏輯相同
-    // selectGroup / renderForm / handleSubmit / updateEntry / deleteEntry / editEntry / renderTable / exportGroup / printGroup
-    // 此處略，與你原始檔案內容一致，僅在 handleSubmit 和 updateEntry 增加 saveToCloud()
+    function createGroup() {
+      const name = prompt("輸入資料名稱：");
+      if (name && !groups.find(g => g.name === name)) {
+        const newGroup = { name, entries: [] };
+        groups.push(newGroup);
+        currentGroup = newGroup;
+        saveToStorage();
+        renderGroups();
+        renderForm();
+      } else {
+        alert("資料名稱已存在或輸入無效");
+      }
+    }
 
-    // EXAMPLE：加入雲端儲存呼叫
+    function renderGroups() {
+      const list = document.getElementById("group-list");
+      list.innerHTML = "";
+      groups.forEach(group => {
+        const div = document.createElement("div");
+        div.innerHTML = `
+          <button onclick="selectGroup('${group.name}')">${group.name}</button>
+          <button onclick="exportGroup('${group.name}')" style="background-color: #28a745; margin-left: 5px;">匯出 Excel</button>
+          <button onclick="printGroup('${group.name}')" class="print-btn" style="margin-left: 5px;">🖨 列印</button>
+          <button onclick="deleteGroup('${group.name}')" style="background-color: #dc3545; margin-left: 5px;">❌ 刪除</button>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function selectGroup(name) {
+      currentGroup = groups.find(g => g.name === name);
+      editingIndex = null;
+      renderForm();
+    }
+
     function handleSubmit() {
       const today = new Date();
       const dateStr = `${today.getMonth() + 1}/${today.getDate()}`;
@@ -160,8 +146,6 @@
       saveToCloud(currentGroup.name, entry);
       renderForm();
     }
-
-    // 其餘原始功能請參照你上傳的 HTML 中程式碼整合即可
 
     renderGroups();
   </script>
