@@ -123,6 +123,41 @@
       renderForm();
     }
 
+    function renderForm() {
+      const form = document.getElementById("entry-form");
+      form.innerHTML = `<h2>${currentGroup.name} - ${editingIndex !== null ? "編輯資料" : "新增資料"}</h2>`;
+      const today = new Date();
+      const dateStr = `${today.getMonth() + 1}/${today.getDate()}`;
+      const dateLabel = document.createElement("label");
+      dateLabel.textContent = `日期：${dateStr}`;
+      form.appendChild(dateLabel);
+      const fields = ["名稱", "總重", "板重", "件數", "長", "寬", "高", "備註"];
+      fields.forEach(field => {
+        const label = document.createElement("label");
+        label.textContent = field + "：";
+        const input = document.createElement("input");
+        input.type = "text";
+        input.id = field;
+        input.placeholder = `請輸入 ${field}`;
+        input.required = true;
+        form.appendChild(label);
+        form.appendChild(input);
+      });
+      if (editingIndex !== null) {
+        const entry = currentGroup.entries[editingIndex];
+        fields.forEach(f => {
+          document.getElementById(f).value = entry[f] || "";
+        });
+      } else {
+        document.getElementById("名稱").value = lastName;
+      }
+      const button = document.createElement("button");
+      button.textContent = editingIndex !== null ? "✔ 更新" : "📌 建立";
+      button.onclick = editingIndex !== null ? updateEntry : handleSubmit;
+      form.appendChild(button);
+      renderTable();
+    }
+
     function handleSubmit() {
       const today = new Date();
       const dateStr = `${today.getMonth() + 1}/${today.getDate()}`;
@@ -145,6 +180,100 @@
       saveToStorage();
       saveToCloud(currentGroup.name, entry);
       renderForm();
+    }
+
+    function renderTable() {
+      const form = document.getElementById("entry-form");
+      if (!currentGroup || !currentGroup.entries.length) return;
+      const table = document.createElement("table");
+      const headers = ["日期", "名稱", "總重", "板重", "淨重", "件數", "長", "寬", "高", "備註", "CBM", "操作"];
+      const thead = document.createElement("thead");
+      const trHead = document.createElement("tr");
+      headers.forEach(h => {
+        const th = document.createElement("th");
+        th.textContent = h;
+        trHead.appendChild(th);
+      });
+      thead.appendChild(trHead);
+      table.appendChild(thead);
+      const tbody = document.createElement("tbody");
+      currentGroup.entries.forEach((entry, i) => {
+        const tr = document.createElement("tr");
+        headers.slice(0, -1).forEach(h => {
+          const td = document.createElement("td");
+          td.textContent = entry[h] || "";
+          tr.appendChild(td);
+        });
+        const tdActions = document.createElement("td");
+        const editBtn = document.createElement("button");
+        editBtn.className = "edit-btn";
+        editBtn.textContent = "修改";
+        editBtn.onclick = () => editEntry(i);
+        tdActions.appendChild(editBtn);
+        const delBtn = document.createElement("button");
+        delBtn.className = "delete-btn";
+        delBtn.textContent = "刪除";
+        delBtn.onclick = () => deleteEntry(i);
+        tdActions.appendChild(delBtn);
+        tr.appendChild(tdActions);
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      form.appendChild(table);
+      const summary = document.createElement("div");
+      summary.className = "summary";
+      const totalCBM = currentGroup.entries.reduce((sum, e) => sum + (e.CBM || 0), 0).toFixed(4);
+      summary.textContent = `📦 CBM 總合計：${totalCBM}`;
+      form.appendChild(summary);
+    }
+
+    function editEntry(index) {
+      editingIndex = index;
+      renderForm();
+    }
+
+    function deleteEntry(index) {
+      if (confirm("確定要刪除此筆資料？")) {
+        currentGroup.entries.splice(index, 1);
+        saveToStorage();
+        renderForm();
+      }
+    }
+
+    function exportGroup(name) {
+      const group = groups.find(g => g.name === name);
+      const ws = XLSX.utils.json_to_sheet(group.entries);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "資料");
+      const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      const blob = new Blob([wbout], { type: "application/octet-stream" });
+      saveAs(blob, `${name}.xlsx`);
+    }
+
+    function printGroup(name) {
+      const group = groups.find(g => g.name === name);
+      const printWindow = window.open("", "列印視窗");
+      const tableHtml = `
+        <html>
+        <head>
+          <title>${name} - 列印</title>
+          <style>
+            body { font-family: sans-serif; padding: 20px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+          </style>
+        </head>
+        <body>
+          <h2>${name}</h2>
+          <table>
+            <thead><tr>${Object.keys(group.entries[0] || {}).map(h => `<th>${h}</th>`).join("")}</tr></thead>
+            <tbody>${group.entries.map(e => `<tr>${Object.values(e).map(v => `<td>${v}</td>`).join("")}</tr>`).join("")}</tbody>
+          </table>
+        </body>
+        </html>`;
+      printWindow.document.write(tableHtml);
+      printWindow.document.close();
+      printWindow.print();
     }
 
     renderGroups();
