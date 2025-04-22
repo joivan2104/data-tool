@@ -80,8 +80,9 @@
           groups = Object.entries(map).map(([name, entries]) => ({ name, entries }));
           saveToStorage();
           renderGroups();
-          loadCloudData(); // 🔁 自動從雲端讀取最新資料
-          alert("✅ 雲端資料已載入！");
+          // ✅ 頁面初始化時從雲端載入資料
+    loadCloudData();
+          // alert("✅ 雲端資料已載入！"); // 改為靜默處理
         }
       } catch (err) {
         alert("⚠️ 雲端資料讀取失敗");
