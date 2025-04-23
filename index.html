@@ -26,12 +26,12 @@
       <form id="dataForm" class="flex flex-wrap gap-2 bg-white p-4 rounded shadow mb-4">
         <input type="date" name="日期" class="border p-2 w-32" required>
         <input type="text" name="名稱" placeholder="名稱" class="border p-2 w-32" required>
-        <input type="number" name="件數" placeholder="件數" class="border p-2 w-24">
-        <input type="number" name="總重" placeholder="總重" class="border p-2 w-24" step="any">
-        <input type="text" name="板種" placeholder="板種" class="border p-2 w-24">
-        <input type="number" name="長" placeholder="長(cm)" class="border p-2 w-24" step="any">
-        <input type="number" name="寬" placeholder="寬(cm)" class="border p-2 w-24" step="any">
-        <input type="number" name="高" placeholder="高(cm)" class="border p-2 w-24" step="any">
+        <input type="text" name="件數" placeholder="件數" class="border p-2 w-24" pattern="\d*" inputmode="numeric">
+        <input type="text" name="總重" placeholder="總重" class="border p-2 w-24" pattern="\d*" inputmode="numeric">
+        <input type="text" name="板種" placeholder="板種" class="border p-2 w-24" pattern="\d*" inputmode="numeric">
+        <input type="text" name="長" placeholder="長(cm)" class="border p-2 w-24" pattern="\d*" inputmode="numeric">
+        <input type="text" name="寬" placeholder="寬(cm)" class="border p-2 w-24" pattern="\d*" inputmode="numeric">
+        <input type="text" name="高" placeholder="高(cm)" class="border p-2 w-24" pattern="\d*" inputmode="numeric">
         <input type="text" id="cbmDisplay" placeholder="CBM" class="border p-2 w-32 bg-gray-100" readonly>
         <input type="text" name="備註" placeholder="備註" class="border p-2 w-64">
         <button id="submitBtn" type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">新增資料</button>
