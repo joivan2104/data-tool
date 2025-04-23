@@ -25,7 +25,19 @@
       <h2 class="text-xl font-bold mb-2">📄 <span id="currentTableName"></span></h2>
       <form id="dataForm" class="flex flex-wrap gap-2 bg-white p-4 rounded shadow mb-4">
         <input type="date" name="日期" class="border p-2 w-32" required>
-        <input type="text" name="名稱" placeholder="名稱" class="border p-2 w-32" required>
+        <select name="名稱" class="border p-2 w-32" required>
+  <option value="">請選擇</option>
+  <option value="發統">發統</option>
+  <option value="午賀">午賀</option>
+  <option value="頂旺">頂旺</option>
+  <option value="維泰">維泰</option>
+  <option value="金川">金川</option>
+  <option value="翊發">翊發</option>
+  <option value="寬豪">寬豪</option>
+  <option value="耐斯">耐斯</option>
+  <option value="松慶">松慶</option>
+  <option value="松達">松達</option>
+</select>
         <input type="text" name="件數" placeholder="件數" class="border p-2 w-24" pattern="\d*" inputmode="numeric">
         <input type="text" name="總重" placeholder="總重" class="border p-2 w-24" pattern="\d*" inputmode="numeric">
         <input type="text" name="板種" placeholder="板種" class="border p-2 w-24" pattern="\d*" inputmode="numeric">
