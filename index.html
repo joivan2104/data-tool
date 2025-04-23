@@ -1,39 +1,199 @@
-
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>登入系統</title>
-  <style>
-    body { font-family: sans-serif; text-align: center; padding: 80px; }
-    input { margin: 6px; padding: 8px; font-size: 16px; width: 200px; }
-    button { padding: 8px 16px; font-size: 16px; margin-top: 12px; }
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>多資料表管理系統</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body>
-  <h2>🔐 登入系統</h2>
-  <input type="text" id="username" placeholder="帳號"><br>
-  <input type="password" id="password" placeholder="密碼"><br>
-  <button onclick="login()">登入</button>
+<body class="p-4 bg-gray-100">
+  <div class="max-w-5xl mx-auto">
+    <h1 class="text-2xl font-bold mb-4">📁 資料表管理</h1>
+
+    <div class="mb-4 flex flex-wrap gap-2 items-center">
+      <input id="newTableName" type="text" placeholder="輸入新資料表名稱" class="border p-2 w-64">
+      <button onclick="createTable()" class="bg-blue-500 text-white px-4 py-2 rounded">建立資料表</button>
+    </div>
+
+    <div class="bg-white rounded shadow p-4">
+      <h2 class="text-xl font-bold mb-2">現有資料表</h2>
+      <div id="tableList" class="flex flex-wrap gap-2"></div>
+    </div>
+
+    <div id="formSection" class="hidden mt-6">
+      <h2 class="text-xl font-bold mb-2">📄 <span id="currentTableName"></span></h2>
+      <form id="dataForm" class="flex flex-wrap gap-2 bg-white p-4 rounded shadow mb-4">
+        <input type="date" name="日期" class="border p-2 w-32" required>
+        <input type="text" name="名稱" placeholder="名稱" class="border p-2 w-32" required>
+        <input type="number" name="件數" placeholder="件數" class="border p-2 w-24">
+        <input type="number" name="總重" placeholder="總重" class="border p-2 w-24" step="any">
+        <input type="text" name="板種" placeholder="板種" class="border p-2 w-24">
+        <input type="number" name="長" placeholder="長(cm)" class="border p-2 w-24" step="any">
+        <input type="number" name="寬" placeholder="寬(cm)" class="border p-2 w-24" step="any">
+        <input type="number" name="高" placeholder="高(cm)" class="border p-2 w-24" step="any">
+        <input type="text" id="cbmDisplay" placeholder="CBM" class="border p-2 w-32 bg-gray-100" readonly>
+        <input type="text" name="備註" placeholder="備註" class="border p-2 w-64">
+        <button id="submitBtn" type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">新增資料</button>
+      </form>
+
+      <h3 class="text-lg font-semibold mb-2">📊 已建立資料</h3>
+      <table class="w-full table-auto bg-white shadow rounded overflow-hidden">
+        <thead class="bg-gray-200">
+          <tr id="tableHead"></tr>
+        </thead>
+        <tbody id="dataTable"></tbody>
+      </table>
+      <button onclick="exportExcel()" class="mt-4 bg-green-500 text-white p-2 rounded">匯出成 Excel</button>
+    </div>
+  </div>
 
   <script>
-    const users = {
-      "user": { password: "82771526", role: "user" },
-      "admin": { password: "24700858", role: "admin" }
-    };
+    const fields = ["日期", "名稱", "件數", "總重", "板種", "長", "寬", "高", "CBM", "備註"];
+    let currentTable = '';
+    let editIndex = -1;
 
-    function login() {
-      const u = document.getElementById("username").value;
-      const p = document.getElementById("password").value;
+    function loadTables() {
+      const keys = Object.keys(localStorage).filter(k => k.startsWith('table_'));
+      const list = document.getElementById('tableList');
+      list.innerHTML = '';
+      keys.forEach(k => {
+        const name = k.replace('table_', '');
+        const card = document.createElement('div');
+        card.className = 'border rounded p-2 flex items-center gap-4 bg-gray-50 shadow-sm';
+        card.innerHTML = `
+          <span class="font-medium">${name}</span>
+          <button onclick="openTable('${name}')" class="text-blue-600">打開</button>
+          <button onclick="deleteTable('${name}')" class="text-red-600">刪除</button>
+        `;
+        list.appendChild(card);
+      });
+    }
 
-      if (users[u] && users[u].password === p) {
-        sessionStorage.setItem("role", users[u].role);
-        location.href = "app.html"; // 實際主頁程式碼檔案
-      } else {
-        alert("帳號或密碼錯誤");
+    function createTable() {
+      const name = document.getElementById('newTableName').value.trim();
+      if (!name) return alert('請輸入名稱');
+      const key = `table_${name}`;
+      if (localStorage.getItem(key)) return alert('資料表已存在');
+      localStorage.setItem(key, '[]');
+      document.getElementById('newTableName').value = '';
+      loadTables();
+    }
+
+    function deleteTable(name) {
+      if (confirm(`確定要刪除「${name}」資料表？`)) {
+        localStorage.removeItem(`table_${name}`);
+        loadTables();
+        if (currentTable === name) {
+          document.getElementById('formSection').classList.add('hidden');
+        }
       }
     }
+
+    function openTable(name) {
+      currentTable = name;
+      editIndex = -1;
+      document.getElementById('currentTableName').innerText = name;
+      document.getElementById('formSection').classList.remove('hidden');
+      document.getElementById('submitBtn').innerText = '新增資料';
+      renderTable();
+    }
+
+    function calculateCBM() {
+      const l = parseFloat(document.querySelector('[name="長"]').value) || 0;
+      const w = parseFloat(document.querySelector('[name="寬"]').value) || 0;
+      const h = parseFloat(document.querySelector('[name="高"]').value) || 0;
+      const cbm = (l * w * h / 1000000).toFixed(6);
+      document.getElementById('cbmDisplay').value = cbm > 0 ? cbm : '';
+      return cbm > 0 ? cbm : '';
+    }
+
+    document.querySelector('[name="長"]').addEventListener('input', calculateCBM);
+    document.querySelector('[name="寬"]').addEventListener('input', calculateCBM);
+    document.querySelector('[name="高"]').addEventListener('input', calculateCBM);
+
+    document.getElementById('dataForm').addEventListener('submit', e => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const obj = {};
+      formData.forEach((v, k) => obj[k] = v);
+      obj['CBM'] = calculateCBM();
+      const key = `table_${currentTable}`;
+      let list = JSON.parse(localStorage.getItem(key) || '[]');
+
+      if (editIndex === -1) {
+        list.push(obj);
+      } else {
+        list[editIndex] = obj;
+        editIndex = -1;
+        document.getElementById('submitBtn').innerText = '新增資料';
+      }
+      localStorage.setItem(key, JSON.stringify(list));
+      e.target.reset();
+      document.getElementById('cbmDisplay').value = '';
+      renderTable();
+    });
+
+    function renderTable() {
+      const data = JSON.parse(localStorage.getItem(`table_${currentTable}`) || '[]');
+      const headRow = document.getElementById('tableHead');
+      const body = document.getElementById('dataTable');
+      headRow.innerHTML = '';
+      fields.concat(["操作"]).forEach(f => {
+        const th = document.createElement('th');
+        th.className = "border p-2";
+        th.innerText = f;
+        headRow.appendChild(th);
+      });
+      body.innerHTML = '';
+      data.forEach((row, i) => {
+        const tr = document.createElement('tr');
+        fields.forEach(f => {
+          const td = document.createElement('td');
+          td.className = "border p-2 text-sm";
+          td.innerText = row[f] || '';
+          tr.appendChild(td);
+        });
+        const td = document.createElement('td');
+        td.className = "border p-2";
+        td.innerHTML = `
+          <button onclick="editRow(${i})" class="text-blue-500 mr-2">修改</button>
+          <button onclick="deleteRow(${i})" class="text-red-500">刪除</button>`;
+        tr.appendChild(td);
+        body.appendChild(tr);
+      });
+    }
+
+    function editRow(i) {
+      const data = JSON.parse(localStorage.getItem(`table_${currentTable}`) || '[]');
+      const row = data[i];
+      const form = document.getElementById('dataForm');
+      fields.forEach(f => {
+        if (f === 'CBM') return;
+        form.elements[f].value = row[f] || '';
+      });
+      document.getElementById('cbmDisplay').value = row['CBM'] || '';
+      editIndex = i;
+      document.getElementById('submitBtn').innerText = '更新資料';
+    }
+
+    function deleteRow(i) {
+      const key = `table_${currentTable}`;
+      const list = JSON.parse(localStorage.getItem(key) || '[]');
+      list.splice(i, 1);
+      localStorage.setItem(key, JSON.stringify(list));
+      renderTable();
+    }
+
+    function exportExcel() {
+      const data = JSON.parse(localStorage.getItem(`table_${currentTable}`) || '[]');
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, currentTable);
+      XLSX.writeFile(workbook, `${currentTable}.xlsx`);
+    }
+
+    loadTables();
   </script>
 </body>
 </html>
