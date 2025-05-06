@@ -13,7 +13,7 @@
   <!-- Firebase Database -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
   <style>
-    html { font-size: 100%; }
+    html { font-size: 85%; }
     input[type="text"], input[type="number"], input[type="date"] {
       max-width: 40px !important;
       font-size: 0.75rem !important;
@@ -282,8 +282,32 @@
       const data = gatherData(true);
       // 同時保存到 localStorage 和 Firebase
       localStorage.setItem("formData", JSON.stringify(data));
-      database.ref('formData').set(data).catch(error => {
-        console.error("儲存資料時發生錯誤：", error);
+      database.ref('formData').set(data)
+        .then(() => {
+          // 顯示儲存成功訊息
+          const saveMsg = document.createElement('div');
+          saveMsg.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg';
+          saveMsg.textContent = '資料已儲存';
+          document.body.appendChild(saveMsg);
+          setTimeout(() => saveMsg.remove(), 2000);
+        })
+        .catch(error => {
+          console.error("儲存資料時發生錯誤：", error);
+          // 顯示錯誤訊息
+          const errorMsg = document.createElement('div');
+          errorMsg.className = 'fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded shadow-lg';
+          errorMsg.textContent = '儲存失敗，請檢查網路連線';
+          document.body.appendChild(errorMsg);
+          setTimeout(() => errorMsg.remove(), 3000);
+        });
+    }
+
+    // 監聽所有輸入欄位的變更
+    function setupInputListeners() {
+      document.addEventListener('input', (e) => {
+        if (e.target.matches('input, select')) {
+          saveToLocal();
+        }
       });
     }
 
@@ -297,6 +321,12 @@
             <div class="form-column space-y-4"></div>
           `;
           data.forEach(f => addFormBlock(f));
+          // 顯示載入成功訊息
+          const loadMsg = document.createElement('div');
+          loadMsg.className = 'fixed bottom-4 right-4 bg-blue-500 text-white px-4 py-2 rounded shadow-lg';
+          loadMsg.textContent = '資料已從雲端載入';
+          document.body.appendChild(loadMsg);
+          setTimeout(() => loadMsg.remove(), 2000);
         } else {
           // 如果 Firebase 沒有資料，則從 localStorage 讀取
           const raw = localStorage.getItem("formData");
@@ -307,6 +337,12 @@
             <div class="form-column space-y-4"></div>
           `;
           saved.forEach(f => addFormBlock(f));
+          // 顯示從本地載入訊息
+          const loadMsg = document.createElement('div');
+          loadMsg.className = 'fixed bottom-4 right-4 bg-blue-500 text-white px-4 py-2 rounded shadow-lg';
+          loadMsg.textContent = '資料已從本地載入';
+          document.body.appendChild(loadMsg);
+          setTimeout(() => loadMsg.remove(), 2000);
         }
       });
     }
@@ -321,7 +357,10 @@
     }
 
     document.querySelector('button.btn-gray').addEventListener("click", displayOutput);
-    window.addEventListener("DOMContentLoaded", restoreFromLocal);
+    window.addEventListener("DOMContentLoaded", () => {
+      restoreFromLocal();
+      setupInputListeners();
+    });
   </script>
 </body>
 </html>
