@@ -56,7 +56,7 @@
       <button onclick="switchTab('form')" class="btn btn-blue">輸入資料</button>
       <button onclick="switchTab('output')" class="btn btn-gray">已建立資料</button>
       <button onclick="exportExcel()" class="btn btn-green">匯出 Excel</button>
-      <button onclick="localStorage.clear(); location.reload()" class="btn btn-red">清除全部</button>
+      <button onclick="clearAllData()" class="btn btn-red">清除全部</button>
       <button onclick="addFormBlock()" class="btn btn-yellow">新增表單</button>
     </div>
     <div id="formTab">
@@ -93,7 +93,12 @@
       document.getElementById('outputTab').classList.toggle('hidden', tab !== 'output');
     }
 
+    // 移除即時監聽
+    let isUpdating = false;
+
     function addFormBlock(data = null) {
+      if (isUpdating) return;
+      isUpdating = true;
       const formContainer = document.getElementById('formContainer');
       const columns = formContainer.querySelectorAll('.form-column');
       const currentFormId = formId++;
@@ -133,9 +138,12 @@
       if (data?.群組) data.群組.forEach(g => addGroup(currentFormId, g)); else addGroup(currentFormId);
       if (data?.disabled) setTimeout(() => formBlock.querySelectorAll('input').forEach(i => i.disabled = true), 0);
       saveToLocal();
+      setTimeout(() => { isUpdating = false; }, 100);
     }
 
     function addGroup(formId, groupData = null) {
+      if (isUpdating) return;
+      isUpdating = true;
       const groupArea = document.getElementById(`groupArea-${formId}`);
       if (!groupCounters[formId]) groupCounters[formId] = 1;
       const currentGroupNumber = groupCounters[formId]++;
@@ -163,9 +171,12 @@
       if (groupData?.disabled) setTimeout(() => groupBlock.querySelectorAll('input').forEach(i => i.disabled = true), 0);
       updateGroupNumbers(formId);
       saveToLocal();
+      setTimeout(() => { isUpdating = false; }, 100);
     }
 
     function addSize(groupId, sizeData = {}) {
+      if (isUpdating) return;
+      isUpdating = true;
       const sizeArea = document.getElementById(`sizeArea-${groupId}`);
       const div = document.createElement('div');
       div.className = 'flex flex-wrap gap-1 items-center';
@@ -179,6 +190,7 @@
       sizeArea.appendChild(div);
       if (sizeData?.disabled) setTimeout(() => div.querySelectorAll('input').forEach(i => i.disabled = true), 0);
       saveToLocal();
+      setTimeout(() => { isUpdating = false; }, 100);
     }
 
     function toggleDisable(btn, lock = true) {
@@ -270,7 +282,9 @@
       const data = gatherData(true);
       // 同時保存到 localStorage 和 Firebase
       localStorage.setItem("formData", JSON.stringify(data));
-      database.ref('formData').set(data);
+      database.ref('formData').set(data).catch(error => {
+        console.error("儲存資料時發生錯誤：", error);
+      });
     }
 
     function restoreFromLocal() {
@@ -297,17 +311,14 @@
       });
     }
 
-    // 監聽資料變更
-    database.ref('formData').on('value', (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        document.getElementById("formContainer").innerHTML = `
-          <div class="form-column space-y-4"></div>
-          <div class="form-column space-y-4"></div>
-        `;
-        data.forEach(f => addFormBlock(f));
-      }
-    });
+    function clearAllData() {
+      // 清除 localStorage
+      localStorage.clear();
+      // 清除 Firebase 資料
+      database.ref('formData').remove();
+      // 重新整理頁面
+      location.reload();
+    }
 
     document.querySelector('button.btn-gray').addEventListener("click", displayOutput);
     window.addEventListener("DOMContentLoaded", restoreFromLocal);
