@@ -1,211 +1,266 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>多資料表管理系統</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>資料建檔系統（含淨重與鎖定還原）</title>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html { font-size: 77.77%; }
+    input[type="text"], input[type="number"], input[type="date"] {
+      max-width: 40px !important;
+      font-size: 0.75rem !important;
+    }
+    button { font-size: 0.80rem !important; }
+    .max-w-6xl {
+      max-width: 52rem !important;
+      margin-left: 0 !important;
+      margin-right: auto !important;
+    }
+    .form-columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .form-column {
+      min-width: 0;
+    }
+    .group-label {
+      font-weight: bold;
+      margin-right: 0.5rem;
+    }
+    .btn {
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      color: white;
+    }
+    .btn-blue { background-color: #2563eb; }
+    .btn-gray { background-color: #4b5563; }
+    .btn-green { background-color: #16a34a; }
+    .btn-red { background-color: #dc2626; }
+    .btn-yellow { background-color: #eab308; color: black; }
+  </style>
 </head>
-<body class="p-4 bg-gray-100">
-  <div class="max-w-5xl mx-auto">
-    <h1 class="text-2xl font-bold mb-4">📁 資料表管理</h1>
-
-    <div class="mb-4 flex flex-wrap gap-2 items-center">
-      <input id="newTableName" type="text" placeholder="輸入新資料表名稱" class="border p-2 w-64">
-      <button onclick="createTable()" class="bg-blue-500 text-white px-4 py-2 rounded">建立資料表</button>
+<body class="p-2 bg-gray-100">
+  <div class="max-w-6xl text-xs">
+    <h1 class="text-base font-bold mb-2">📦 資料建檔系統</h1>
+    <div class="mb-2 flex flex-wrap gap-2">
+      <button onclick="switchTab('form')" class="btn btn-blue">輸入資料</button>
+      <button onclick="switchTab('output')" class="btn btn-gray">已建立資料</button>
+      <button onclick="exportExcel()" class="btn btn-green">匯出 Excel</button>
+      <button onclick="localStorage.clear(); location.reload()" class="btn btn-red">清除全部</button>
+      <button onclick="addFormBlock()" class="btn btn-yellow">新增表單</button>
     </div>
-
-    <div class="bg-white rounded shadow p-4">
-      <h2 class="text-xl font-bold mb-2">現有資料表</h2>
-      <div id="tableList" class="flex flex-wrap gap-2"></div>
+    <div id="formTab">
+      <div id="formContainer" class="form-columns">
+        <div class="form-column space-y-4"></div>
+        <div class="form-column space-y-4"></div>
+      </div>
     </div>
-
-    <div id="formSection" class="hidden mt-6">
-      <h2 class="text-xl font-bold mb-2">📄 <span id="currentTableName"></span></h2>
-      <form id="dataForm" class="flex flex-wrap gap-2 bg-white p-4 rounded shadow mb-4">
-        <input type="date" name="日期" class="border p-2 w-32" required>
-        <select name="名稱" class="border p-2 w-32" required>
-  <option value="">請選擇</option>
-  <option value="發統">發統</option>
-  <option value="午賀">午賀</option>
-  <option value="頂旺">頂旺</option>
-  <option value="維泰">維泰</option>
-  <option value="金川">金川</option>
-  <option value="翊發">翊發</option>
-  <option value="寬豪">寬豪</option>
-  <option value="耐斯">耐斯</option>
-  <option value="松慶">松慶</option>
-  <option value="松達">松達</option>
-</select>
-        <input type="text" name="件數" placeholder="件數" class="border p-2 w-24" pattern="\d*" inputmode="numeric">
-        <input type="text" name="總重" placeholder="總重" class="border p-2 w-24" pattern="\d*" inputmode="numeric">
-        <input type="text" name="板種" placeholder="板種" class="border p-2 w-24" pattern="\d*" inputmode="numeric">
-        <input type="text" name="長" placeholder="長(cm)" class="border p-2 w-24" pattern="\d*" inputmode="numeric">
-        <input type="text" name="寬" placeholder="寬(cm)" class="border p-2 w-24" pattern="\d*" inputmode="numeric">
-        <input type="text" name="高" placeholder="高(cm)" class="border p-2 w-24" pattern="\d*" inputmode="numeric">
-        <input type="text" id="cbmDisplay" placeholder="CBM" class="border p-2 w-32 bg-gray-100" readonly>
-        <input type="text" name="備註" placeholder="備註" class="border p-2 w-64">
-        <button id="submitBtn" type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">新增資料</button>
-      </form>
-
-      <h3 class="text-lg font-semibold mb-2">📊 已建立資料</h3>
-      <table class="w-full table-auto bg-white shadow rounded overflow-hidden">
-        <thead class="bg-gray-200">
-          <tr id="tableHead"></tr>
-        </thead>
-        <tbody id="dataTable"></tbody>
-      </table>
-      <button onclick="exportExcel()" class="mt-4 bg-green-500 text-white p-2 rounded">匯出成 Excel</button>
-    </div>
+    <div id="outputTab" class="hidden mt-4"><div id="output" class="space-y-4"></div></div>
   </div>
-
   <script>
-    const fields = ["日期", "名稱", "件數", "總重", "板種", "長", "寬", "高", "CBM", "備註"];
-    let currentTable = '';
-    let editIndex = -1;
+    let formId = 0;
+    let groupCounters = {};
 
-    function loadTables() {
-      const keys = Object.keys(localStorage).filter(k => k.startsWith('table_'));
-      const list = document.getElementById('tableList');
-      list.innerHTML = '';
-      keys.forEach(k => {
-        const name = k.replace('table_', '');
-        const card = document.createElement('div');
-        card.className = 'border rounded p-2 flex items-center gap-4 bg-gray-50 shadow-sm';
-        card.innerHTML = `
-          <span class="font-medium">${name}</span>
-          <button onclick="openTable('${name}')" class="text-blue-600">打開</button>
-          <button onclick="deleteTable('${name}')" class="text-red-600">刪除</button>
-        `;
-        list.appendChild(card);
+    function switchTab(tab) {
+      document.getElementById('formTab').classList.toggle('hidden', tab !== 'form');
+      document.getElementById('outputTab').classList.toggle('hidden', tab !== 'output');
+    }
+
+    function addFormBlock(data = null) {
+      const formContainer = document.getElementById('formContainer');
+      const columns = formContainer.querySelectorAll('.form-column');
+      const currentFormId = formId++;
+      
+      // 決定要將表單加入哪一欄
+      const targetColumn = columns[0].children.length <= columns[1].children.length ? columns[0] : columns[1];
+      
+      const formBlock = document.createElement('div');
+      formBlock.className = 'border p-2 bg-white rounded space-y-1';
+      formBlock.setAttribute('data-form-id', currentFormId);
+      formBlock.innerHTML = `
+        <div class="flex justify-between items-center">
+          <div class="flex items-center gap-2">
+            <span class="font-bold">表單稱號：</span>
+            <select class="form-title-select border text-xs p-0.5 rounded">
+              <option value="資料表單" ${data?.稱號 === "資料表單" ? "selected" : ""}>資料表單</option>
+              <option value="輸送紀錄表單" ${data?.稱號 === "輸送紀錄表單" ? "selected" : ""}>輸送紀錄表單</option>
+              <option value="庫存登記表單" ${data?.稱號 === "庫存登記表單" ? "selected" : ""}>庫存登記表單</option>
+              <option value="工件追蹤表單" ${data?.稱號 === "工件追蹤表單" ? "selected" : ""}>工件追蹤表單</option>
+            </select>
+          </div>
+          <div class="flex gap-1">
+            <button onclick="toggleDisable(this)" class="text-blue-500">🔒 鎖定</button>
+            <button onclick="toggleDisable(this, false)" class="text-green-500">🔓 解鎖</button>
+            <button onclick="this.closest('[data-form-id]').remove(); saveToLocal()" class="text-red-500">🗑 刪除此表單</button>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-1">
+          <input type="date" class="border p-0.5 text-xs" placeholder="日期" value="${data?.日期 || ''}">
+          <input type="text" class="border p-0.5 text-xs" placeholder="客戶" value="${data?.客戶 || ''}">
+          <input type="text" class="border p-0.5 text-xs" placeholder="品項" value="${data?.品項 || ''}">
+        </div>
+        <div class="space-y-2" id="groupArea-${currentFormId}"></div>
+        <button onclick="addGroup(${currentFormId})" class="bg-blue-500 text-white px-2 py-0.5 rounded text-xs">➕新增群組</button>
+      `;
+      targetColumn.appendChild(formBlock);
+      if (data?.群組) data.群組.forEach(g => addGroup(currentFormId, g)); else addGroup(currentFormId);
+      if (data?.disabled) setTimeout(() => formBlock.querySelectorAll('input').forEach(i => i.disabled = true), 0);
+      saveToLocal();
+    }
+
+    function addGroup(formId, groupData = null) {
+      const groupArea = document.getElementById(`groupArea-${formId}`);
+      if (!groupCounters[formId]) groupCounters[formId] = 1;
+      const currentGroupNumber = groupCounters[formId]++;
+      const groupId = Date.now() + Math.floor(Math.random() * 1000);
+      const groupBlock = document.createElement('div');
+      groupBlock.className = 'border p-2 rounded bg-gray-50 space-y-1';
+      groupBlock.setAttribute('data-group-id', groupId);
+      groupBlock.setAttribute('data-group-number', currentGroupNumber);
+      groupBlock.innerHTML = `
+        <div class="flex justify-between items-center">
+          <div><span class="group-label">群組 ${currentGroupNumber}</span></div>
+          <button onclick="removeGroup(this, ${formId})" class="text-red-500">🗑 刪除此群組</button>
+        </div>
+        <div class="flex flex-wrap gap-1">
+          <input type="number" class="border p-0.5 text-xs" placeholder="件數" value="${groupData?.件數 || ''}">
+          <input type="number" class="border p-0.5 text-xs" placeholder="總重" value="${groupData?.總重 || ''}">
+          <input type="number" class="border p-0.5 text-xs" placeholder="板重" value="${groupData?.板重 || ''}">
+        </div>
+        <div class="space-y-1 ml-4" id="sizeArea-${groupId}"></div>
+        <button onclick="addSize(${groupId})" class="bg-green-600 text-white px-2 py-0.5 rounded text-xs ml-4">➕新增尺寸</button>
+      `;
+      groupArea.appendChild(groupBlock);
+      if (groupData?.尺寸) groupData.尺寸.forEach(size => addSize(groupId, size));
+      else addSize(groupId);
+      if (groupData?.disabled) setTimeout(() => groupBlock.querySelectorAll('input').forEach(i => i.disabled = true), 0);
+      updateGroupNumbers(formId);
+      saveToLocal();
+    }
+
+    function addSize(groupId, sizeData = {}) {
+      const sizeArea = document.getElementById(`sizeArea-${groupId}`);
+      const div = document.createElement('div');
+      div.className = 'flex flex-wrap gap-1 items-center';
+      div.innerHTML = `
+        <input type="number" class="border p-0.5 text-xs" placeholder="長" value="${sizeData?.長 || ''}">
+        <input type="number" class="border p-0.5 text-xs" placeholder="寬" value="${sizeData?.寬 || ''}">
+        <input type="number" class="border p-0.5 text-xs" placeholder="高" value="${sizeData?.高 || ''}">
+        <input type="number" class="border p-0.5 text-xs" placeholder="數量" value="${sizeData?.數量 || ''}">
+        <button onclick="this.parentElement.remove(); saveToLocal()" class="text-red-400 px-2">✖</button>
+      `;
+      sizeArea.appendChild(div);
+      if (sizeData?.disabled) setTimeout(() => div.querySelectorAll('input').forEach(i => i.disabled = true), 0);
+      saveToLocal();
+    }
+
+    function toggleDisable(btn, lock = true) {
+      const form = btn.closest('[data-form-id]');
+      form.querySelectorAll('input').forEach(input => input.disabled = lock);
+      saveToLocal();
+    }
+
+    function removeGroup(btn, formId) {
+      btn.closest('[data-group-id]').remove();
+      updateGroupNumbers(formId);
+      saveToLocal();
+    }
+
+    function updateGroupNumbers(formId) {
+      const area = document.getElementById(`groupArea-${formId}`);
+      area.querySelectorAll('[data-group-id]').forEach((g, i) => {
+        g.querySelector('.group-label').textContent = `群組 ${i + 1}`;
       });
+      groupCounters[formId] = area.querySelectorAll('[data-group-id]').length + 1;
     }
 
-    function createTable() {
-      const name = document.getElementById('newTableName').value.trim();
-      if (!name) return alert('請輸入名稱');
-      const key = `table_${name}`;
-      if (localStorage.getItem(key)) return alert('資料表已存在');
-      localStorage.setItem(key, '[]');
-      document.getElementById('newTableName').value = '';
-      loadTables();
-    }
+    function gatherData(raw = false) {
+      const all = document.querySelectorAll('[data-form-id]');
+      const result = [];
 
-    function deleteTable(name) {
-      if (confirm(`確定要刪除「${name}」資料表？`)) {
-        localStorage.removeItem(`table_${name}`);
-        loadTables();
-        if (currentTable === name) {
-          document.getElementById('formSection').classList.add('hidden');
-        }
-      }
-    }
+      all.forEach(form => {
+        const title = form.querySelector('.form-title-select').value;
+        const date = form.querySelector('input[type="date"]').value;
+        const customer = form.querySelector('input[placeholder="客戶"]').value;
+        const item = form.querySelector('input[placeholder="品項"]').value;
+        const groups = form.querySelectorAll('[data-group-id]');
+        const groupList = [];
 
-    function openTable(name) {
-      currentTable = name;
-      editIndex = -1;
-      document.getElementById('currentTableName').innerText = name;
-      document.getElementById('formSection').classList.remove('hidden');
-      document.getElementById('submitBtn').innerText = '新增資料';
-      renderTable();
-    }
+        groups.forEach(group => {
+          const quantity = group.querySelector('input[placeholder="件數"]').value;
+          const weight = parseFloat(group.querySelector('input[placeholder="總重"]').value) || 0;
+          const pallet = parseFloat(group.querySelector('input[placeholder="板重"]').value) || 0;
+          const net = (weight - pallet).toFixed(3);
+          const sizes = group.querySelectorAll(`#sizeArea-${group.dataset.groupId} > div`);
+          const sizeList = [];
 
-    function calculateCBM() {
-      const l = parseFloat(document.querySelector('[name="長"]').value) || 0;
-      const w = parseFloat(document.querySelector('[name="寬"]').value) || 0;
-      const h = parseFloat(document.querySelector('[name="高"]').value) || 0;
-      const cbm = (l * w * h / 1000000).toFixed(6);
-      document.getElementById('cbmDisplay').value = cbm > 0 ? cbm : '';
-      return cbm > 0 ? cbm : '';
-    }
+          sizes.forEach(row => {
+            const l = row.querySelector('input[placeholder="長"]').value;
+            const w = row.querySelector('input[placeholder="寬"]').value;
+            const h = row.querySelector('input[placeholder="高"]').value;
+            const c = row.querySelector('input[placeholder="數量"]').value;
+            const cbm = ((l * w * h * c) / 1000000).toFixed(3);
 
-    document.querySelector('[name="長"]').addEventListener('input', calculateCBM);
-    document.querySelector('[name="寬"]').addEventListener('input', calculateCBM);
-    document.querySelector('[name="高"]').addEventListener('input', calculateCBM);
+            if (raw) sizeList.push({ 長: l, 寬: w, 高: h, 數量: c, disabled: row.querySelector('input')?.disabled || false });
+            else result.push({ 稱號: title,日期: date, 客戶: customer, 品項: item, 件數: quantity, 總重: weight, 板重: pallet, 淨重: net, 長: l, 寬: w, 高: h, 數量: c, 材積: cbm });
+          });
 
-    document.getElementById('dataForm').addEventListener('submit', e => {
-      e.preventDefault();
-      const formData = new FormData(e.target);
-      const obj = {};
-      formData.forEach((v, k) => obj[k] = v);
-      obj['CBM'] = calculateCBM();
-      const key = `table_${currentTable}`;
-      let list = JSON.parse(localStorage.getItem(key) || '[]');
-
-      if (editIndex === -1) {
-        list.push(obj);
-      } else {
-        list[editIndex] = obj;
-        editIndex = -1;
-        document.getElementById('submitBtn').innerText = '新增資料';
-      }
-      localStorage.setItem(key, JSON.stringify(list));
-      e.target.reset();
-      document.getElementById('cbmDisplay').value = '';
-      renderTable();
-    });
-
-    function renderTable() {
-      const data = JSON.parse(localStorage.getItem(`table_${currentTable}`) || '[]');
-      const headRow = document.getElementById('tableHead');
-      const body = document.getElementById('dataTable');
-      headRow.innerHTML = '';
-      fields.concat(["操作"]).forEach(f => {
-        const th = document.createElement('th');
-        th.className = "border p-2";
-        th.innerText = f;
-        headRow.appendChild(th);
-      });
-      body.innerHTML = '';
-      data.forEach((row, i) => {
-        const tr = document.createElement('tr');
-        fields.forEach(f => {
-          const td = document.createElement('td');
-          td.className = "border p-2 text-sm";
-          td.innerText = row[f] || '';
-          tr.appendChild(td);
+          if (raw) groupList.push({ 件數: quantity, 總重: weight, 板重: pallet, disabled: group.querySelector('input')?.disabled || false, 尺寸: sizeList });
         });
-        const td = document.createElement('td');
-        td.className = "border p-2";
-        td.innerHTML = `
-          <button onclick="editRow(${i})" class="text-blue-500 mr-2">修改</button>
-          <button onclick="deleteRow(${i})" class="text-red-500">刪除</button>`;
-        tr.appendChild(td);
-        body.appendChild(tr);
+
+        if (raw) result.push({ 日期: date, 客戶: customer, 品項: item, disabled: form.querySelector('input')?.disabled || false, 群組: groupList });
       });
+
+      return result;
     }
 
-    function editRow(i) {
-      const data = JSON.parse(localStorage.getItem(`table_${currentTable}`) || '[]');
-      const row = data[i];
-      const form = document.getElementById('dataForm');
-      fields.forEach(f => {
-        if (f === 'CBM') return;
-        form.elements[f].value = row[f] || '';
-      });
-      document.getElementById('cbmDisplay').value = row['CBM'] || '';
-      editIndex = i;
-      document.getElementById('submitBtn').innerText = '更新資料';
-    }
+    function displayOutput() {
+      const out = document.getElementById("output");
+      out.innerHTML = "";
+      const data = gatherData();
 
-    function deleteRow(i) {
-      const key = `table_${currentTable}`;
-      const list = JSON.parse(localStorage.getItem(key) || '[]');
-      list.splice(i, 1);
-      localStorage.setItem(key, JSON.stringify(list));
-      renderTable();
+      if (!data.length) return out.textContent = "目前無資料";
+
+      const table = document.createElement("table");
+      table.className = "table-auto border border-collapse w-full text-xs";
+      table.innerHTML = `
+        <thead><tr class="bg-gray-300">${Object.keys(data[0]).map(k => `<th class="border px-1">${k}</th>`).join('')}</tr></thead>
+        <tbody>${data.map(r => `<tr>${Object.values(r).map(v => `<td class="border px-1">${v}</td>`).join('')}</tr>`).join('')}</tbody>
+      `;
+      out.appendChild(table);
     }
 
     function exportExcel() {
-      const data = JSON.parse(localStorage.getItem(`table_${currentTable}`) || '[]');
-      const worksheet = XLSX.utils.json_to_sheet(data);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, currentTable);
-      XLSX.writeFile(workbook, `${currentTable}.xlsx`);
+      const data = gatherData();
+      if (!data.length) return alert("沒有可匯出的資料！");
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "資料表");
+      XLSX.writeFile(wb, "資料建檔.xlsx");
     }
 
-    loadTables();
+    function saveToLocal() {
+      const data = gatherData(true);
+      localStorage.setItem("formData", JSON.stringify(data));
+    }
+
+    function restoreFromLocal() {
+      const raw = localStorage.getItem("formData");
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      document.getElementById("formContainer").innerHTML = `
+        <div class="form-column space-y-4"></div>
+        <div class="form-column space-y-4"></div>
+      `;
+      saved.forEach(f => addFormBlock(f));
+    }
+
+    document.querySelector('button.btn-gray').addEventListener("click", displayOutput);
+    window.addEventListener("DOMContentLoaded", restoreFromLocal);
   </script>
 </body>
 </html>
