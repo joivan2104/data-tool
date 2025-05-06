@@ -3,11 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>詠泰</title>
+  <title>資料建檔系統（含淨重與鎖定還原）</title>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Firebase App (the core Firebase SDK) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <!-- Firebase Analytics -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics-compat.js"></script>
+  <!-- Firebase Database -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
   <style>
-    html { font-size: 88.88%; }
+    html { font-size: 77.77%; }
     input[type="text"], input[type="number"], input[type="date"] {
       max-width: 40px !important;
       font-size: 0.75rem !important;
@@ -47,7 +53,7 @@
   <div class="max-w-6xl text-xs">
     <h1 class="text-base font-bold mb-2">📦 資料建檔系統</h1>
     <div class="mb-2 flex flex-wrap gap-2">
-      <button onclick="switchTab('form')" class="btn btn-blue">填寫資料</button>
+      <button onclick="switchTab('form')" class="btn btn-blue">輸入資料</button>
       <button onclick="switchTab('output')" class="btn btn-gray">已建立資料</button>
       <button onclick="exportExcel()" class="btn btn-green">匯出 Excel</button>
       <button onclick="localStorage.clear(); location.reload()" class="btn btn-red">清除全部</button>
@@ -62,6 +68,23 @@
     <div id="outputTab" class="hidden mt-4"><div id="output" class="space-y-4"></div></div>
   </div>
   <script>
+    // Firebase 配置
+    const firebaseConfig = {
+      apiKey: "AIzaSyAYP7j1S7mts7g2QsGGWpFO1Ay-1VzBDHE",
+      authDomain: "yongtai-96000.firebaseapp.com",
+      databaseURL: "https://yongtai-96000-default-rtdb.firebaseio.com",
+      projectId: "yongtai-96000",
+      storageBucket: "yongtai-96000.firebasestorage.app",
+      messagingSenderId: "528027278444",
+      appId: "1:528027278444:web:8591ed6c3cef3b4f750c49",
+      measurementId: "G-H5YP3JX4LE"
+    };
+
+    // 初始化 Firebase
+    firebase.initializeApp(firebaseConfig);
+    const analytics = firebase.analytics();
+    const database = firebase.database();
+
     let formId = 0;
     let groupCounters = {};
 
@@ -86,8 +109,8 @@
           <div class="flex items-center gap-2">
             <span class="font-bold">表單稱號：</span>
             <select class="form-title-select border text-xs p-0.5 rounded">
-              <option value="TG" ${data?.稱號 === "TG" ? "selected" : ""}>TG</option>
-              <option value="柑" ${data?.稱號 === "柑" ? "selected" : ""}>柑</option>
+              <option value="資料表單" ${data?.稱號 === "資料表單" ? "selected" : ""}>資料表單</option>
+              <option value="輸送紀錄表單" ${data?.稱號 === "輸送紀錄表單" ? "selected" : ""}>輸送紀錄表單</option>
               <option value="庫存登記表單" ${data?.稱號 === "庫存登記表單" ? "selected" : ""}>庫存登記表單</option>
               <option value="工件追蹤表單" ${data?.稱號 === "工件追蹤表單" ? "selected" : ""}>工件追蹤表單</option>
             </select>
@@ -194,7 +217,7 @@
           const quantity = group.querySelector('input[placeholder="件數"]').value;
           const weight = parseFloat(group.querySelector('input[placeholder="總重"]').value) || 0;
           const pallet = parseFloat(group.querySelector('input[placeholder="板重"]').value) || 0;
-          const net = (weight - pallet).toFixed(3);
+          const net = Math.round(weight - pallet);
           const sizes = group.querySelectorAll(`#sizeArea-${group.dataset.groupId} > div`);
           const sizeList = [];
 
@@ -245,19 +268,46 @@
 
     function saveToLocal() {
       const data = gatherData(true);
+      // 同時保存到 localStorage 和 Firebase
       localStorage.setItem("formData", JSON.stringify(data));
+      database.ref('formData').set(data);
     }
 
     function restoreFromLocal() {
-      const raw = localStorage.getItem("formData");
-      if (!raw) return;
-      const saved = JSON.parse(raw);
-      document.getElementById("formContainer").innerHTML = `
-        <div class="form-column space-y-4"></div>
-        <div class="form-column space-y-4"></div>
-      `;
-      saved.forEach(f => addFormBlock(f));
+      // 先從 Firebase 讀取資料
+      database.ref('formData').once('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          document.getElementById("formContainer").innerHTML = `
+            <div class="form-column space-y-4"></div>
+            <div class="form-column space-y-4"></div>
+          `;
+          data.forEach(f => addFormBlock(f));
+        } else {
+          // 如果 Firebase 沒有資料，則從 localStorage 讀取
+          const raw = localStorage.getItem("formData");
+          if (!raw) return;
+          const saved = JSON.parse(raw);
+          document.getElementById("formContainer").innerHTML = `
+            <div class="form-column space-y-4"></div>
+            <div class="form-column space-y-4"></div>
+          `;
+          saved.forEach(f => addFormBlock(f));
+        }
+      });
     }
+
+    // 監聽資料變更
+    database.ref('formData').on('value', (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        document.getElementById("formContainer").innerHTML = `
+          <div class="form-column space-y-4"></div>
+          <div class="form-column space-y-4"></div>
+        `;
+        data.forEach(f => addFormBlock(f));
+      }
+    });
 
     document.querySelector('button.btn-gray').addEventListener("click", displayOutput);
     window.addEventListener("DOMContentLoaded", restoreFromLocal);
