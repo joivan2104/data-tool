@@ -287,7 +287,7 @@
           // 顯示儲存成功訊息
           const saveMsg = document.createElement('div');
           saveMsg.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg';
-          saveMsg.textContent = '資料已儲存';
+          saveMsg.textContent = '資料已同步至雲端';
           document.body.appendChild(saveMsg);
           setTimeout(() => saveMsg.remove(), 2000);
         })
@@ -296,7 +296,7 @@
           // 顯示錯誤訊息
           const errorMsg = document.createElement('div');
           errorMsg.className = 'fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded shadow-lg';
-          errorMsg.textContent = '儲存失敗，請檢查網路連線';
+          errorMsg.textContent = '同步失敗，請檢查網路連線';
           document.body.appendChild(errorMsg);
           setTimeout(() => errorMsg.remove(), 3000);
         });
@@ -307,6 +307,29 @@
       document.addEventListener('input', (e) => {
         if (e.target.matches('input, select')) {
           saveToLocal();
+        }
+      });
+    }
+
+    // 監聽 Firebase 資料變更
+    function setupFirebaseListener() {
+      database.ref('formData').on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data && !isUpdating) {
+          isUpdating = true;
+          document.getElementById("formContainer").innerHTML = `
+            <div class="form-column space-y-4"></div>
+            <div class="form-column space-y-4"></div>
+          `;
+          data.forEach(f => addFormBlock(f));
+          setTimeout(() => { isUpdating = false; }, 100);
+          
+          // 顯示同步訊息
+          const syncMsg = document.createElement('div');
+          syncMsg.className = 'fixed bottom-4 right-4 bg-blue-500 text-white px-4 py-2 rounded shadow-lg';
+          syncMsg.textContent = '資料已從雲端同步';
+          document.body.appendChild(syncMsg);
+          setTimeout(() => syncMsg.remove(), 2000);
         }
       });
     }
@@ -360,6 +383,7 @@
     window.addEventListener("DOMContentLoaded", () => {
       restoreFromLocal();
       setupInputListeners();
+      setupFirebaseListener();
     });
   </script>
 </body>
