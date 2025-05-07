@@ -58,6 +58,7 @@
       <button onclick="exportExcel()" class="btn btn-green">匯出 Excel</button>
       <button onclick="clearAllData()" class="btn btn-red">清除全部</button>
       <button onclick="addFormBlock()" class="btn btn-yellow">新增表單</button>
+      <button onclick="loadSavedData()" class="btn btn-blue">📥 讀取資料</button>
     </div>
     <div id="formTab">
       <div id="formContainer" class="form-columns">
@@ -379,15 +380,17 @@
       database.ref('formData').on('value', (snapshot) => {
         console.log('收到 Firebase 更新');
         const data = snapshot.val();
-        // 只在初始載入或非本地更新時更新畫面
-        if (data && !isUpdating && !isInitialLoad) {
+        // 只在非本地更新時更新畫面
+        if (data && !isUpdating) {
           console.log('更新資料', data);
           isUpdating = true;
           document.getElementById("formContainer").innerHTML = `
             <div class="form-column space-y-4"></div>
             <div class="form-column space-y-4"></div>
           `;
-          data.forEach(f => addFormBlock(f));
+          Object.values(data).forEach(f => addFormBlock(f));
+          // 同時更新 localStorage
+          localStorage.setItem("formData", JSON.stringify(data));
           setTimeout(() => { isUpdating = false; }, 100);
           
           // 顯示同步訊息
@@ -397,52 +400,84 @@
           document.body.appendChild(syncMsg);
           setTimeout(() => syncMsg.remove(), 2000);
         }
-        isInitialLoad = false;
       }, (error) => {
         console.error('Firebase 監聽錯誤:', error);
       });
     }
 
-    function restoreFromLocal() {
-      console.log('開始載入資料');
-      isInitialLoad = true;
-      // 先從 Firebase 讀取資料
-      database.ref('formData').once('value', (snapshot) => {
-        const data = snapshot.val();
-        console.log('從 Firebase 讀取到的資料:', data);
-        if (data) {
-          document.getElementById("formContainer").innerHTML = `
-            <div class="form-column space-y-4"></div>
-            <div class="form-column space-y-4"></div>
-          `;
-          data.forEach(f => addFormBlock(f));
-          // 顯示載入成功訊息
-          const loadMsg = document.createElement('div');
-          loadMsg.className = 'fixed bottom-4 right-4 bg-blue-500 text-white px-4 py-2 rounded shadow-lg';
-          loadMsg.textContent = '資料已從雲端載入';
-          document.body.appendChild(loadMsg);
-          setTimeout(() => loadMsg.remove(), 2000);
-        } else {
-          // 如果 Firebase 沒有資料，則從 localStorage 讀取
-          const raw = localStorage.getItem("formData");
-          if (!raw) return;
-          const saved = JSON.parse(raw);
+    function loadSavedData() {
+      // 先從 localStorage 讀取資料
+      const localData = localStorage.getItem("formData");
+      if (localData) {
+        try {
+          const saved = JSON.parse(localData);
           console.log('從 localStorage 讀取到的資料:', saved);
           document.getElementById("formContainer").innerHTML = `
             <div class="form-column space-y-4"></div>
             <div class="form-column space-y-4"></div>
           `;
           saved.forEach(f => addFormBlock(f));
-          // 顯示從本地載入訊息
-          const loadMsg = document.createElement('div');
-          loadMsg.className = 'fixed bottom-4 right-4 bg-blue-500 text-white px-4 py-2 rounded shadow-lg';
-          loadMsg.textContent = '資料已從本地載入';
-          document.body.appendChild(loadMsg);
-          setTimeout(() => loadMsg.remove(), 2000);
+          
+          // 將本地資料同步到 Firebase
+          database.ref('formData').set(saved)
+            .then(() => {
+              console.log('本地資料已同步到 Firebase');
+              const loadMsg = document.createElement('div');
+              loadMsg.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg';
+              loadMsg.textContent = '資料已從本地載入並同步至雲端';
+              document.body.appendChild(loadMsg);
+              setTimeout(() => loadMsg.remove(), 2000);
+            })
+            .catch(error => {
+              console.error('同步到 Firebase 時發生錯誤:', error);
+              const errorMsg = document.createElement('div');
+              errorMsg.className = 'fixed bottom-4 right-4 bg-yellow-500 text-white px-4 py-2 rounded shadow-lg';
+              errorMsg.textContent = '資料已從本地載入，但同步至雲端失敗';
+              document.body.appendChild(errorMsg);
+              setTimeout(() => errorMsg.remove(), 3000);
+            });
+        } catch (error) {
+          console.error('解析本地資料時發生錯誤:', error);
+          const errorMsg = document.createElement('div');
+          errorMsg.className = 'fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded shadow-lg';
+          errorMsg.textContent = '讀取資料時發生錯誤';
+          document.body.appendChild(errorMsg);
+          setTimeout(() => errorMsg.remove(), 3000);
         }
-      }).catch(error => {
-        console.error('讀取資料時發生錯誤:', error);
-      });
+      } else {
+        // 如果本地沒有資料，嘗試從 Firebase 讀取
+        database.ref('formData').once('value', (snapshot) => {
+          const data = snapshot.val();
+          if (data) {
+            document.getElementById("formContainer").innerHTML = `
+              <div class="form-column space-y-4"></div>
+              <div class="form-column space-y-4"></div>
+            `;
+            Object.values(data).forEach(f => addFormBlock(f));
+            // 更新 localStorage
+            localStorage.setItem("formData", JSON.stringify(data));
+            
+            const loadMsg = document.createElement('div');
+            loadMsg.className = 'fixed bottom-4 right-4 bg-blue-500 text-white px-4 py-2 rounded shadow-lg';
+            loadMsg.textContent = '資料已從雲端載入';
+            document.body.appendChild(loadMsg);
+            setTimeout(() => loadMsg.remove(), 2000);
+          } else {
+            const noDataMsg = document.createElement('div');
+            noDataMsg.className = 'fixed bottom-4 right-4 bg-yellow-500 text-white px-4 py-2 rounded shadow-lg';
+            noDataMsg.textContent = '沒有找到已儲存的資料';
+            document.body.appendChild(noDataMsg);
+            setTimeout(() => noDataMsg.remove(), 3000);
+          }
+        }).catch(error => {
+          console.error('從 Firebase 讀取資料時發生錯誤:', error);
+          const errorMsg = document.createElement('div');
+          errorMsg.className = 'fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded shadow-lg';
+          errorMsg.textContent = '無法從雲端讀取資料';
+          document.body.appendChild(errorMsg);
+          setTimeout(() => errorMsg.remove(), 3000);
+        });
+      }
     }
 
     function clearAllData() {
@@ -457,7 +492,7 @@
     document.querySelector('button.btn-gray').addEventListener("click", displayOutput);
     window.addEventListener("DOMContentLoaded", () => {
       console.log('頁面載入完成，開始初始化');
-      restoreFromLocal();
+      loadSavedData();
       setupInputListeners();
       setupFirebaseListener();
     });
