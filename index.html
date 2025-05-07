@@ -235,20 +235,60 @@
           const sizeList = [];
 
           sizes.forEach(row => {
-            const l = row.querySelector('input[placeholder="長"]').value;
-            const w = row.querySelector('input[placeholder="寬"]').value;
-            const h = row.querySelector('input[placeholder="高"]').value;
-            const c = row.querySelector('input[placeholder="數量"]').value;
+            const l = parseFloat(row.querySelector('input[placeholder="長"]').value) || 0;
+            const w = parseFloat(row.querySelector('input[placeholder="寬"]').value) || 0;
+            const h = parseFloat(row.querySelector('input[placeholder="高"]').value) || 0;
+            const c = parseFloat(row.querySelector('input[placeholder="數量"]').value) || 0;
             const cbm = ((l * w * h * c) / 1000000).toFixed(3);
 
-            if (raw) sizeList.push({ 長: l, 寬: w, 高: h, 數量: c, disabled: row.querySelector('input')?.disabled || false });
-            else result.push({ 稱號: title,日期: date, 客戶: customer, 品項: item, 件數: quantity, 總重: weight, 板重: pallet, 淨重: net, 長: l, 寬: w, 高: h, 數量: c, 材積: cbm });
+            if (raw) {
+              sizeList.push({ 
+                長: l, 
+                寬: w, 
+                高: h, 
+                數量: c, 
+                disabled: row.querySelector('input')?.disabled || false 
+              });
+            } else {
+              result.push({ 
+                稱號: title,
+                日期: date, 
+                客戶: customer, 
+                品項: item, 
+                件數: quantity, 
+                總重: weight, 
+                板重: pallet, 
+                淨重: net, 
+                長: l, 
+                寬: w, 
+                高: h, 
+                數量: c, 
+                材積: cbm 
+              });
+            }
           });
 
-          if (raw) groupList.push({ 件數: quantity, 總重: weight, 板重: pallet, disabled: group.querySelector('input')?.disabled || false, 尺寸: sizeList });
+          if (raw) {
+            groupList.push({ 
+              件數: quantity, 
+              總重: weight, 
+              板重: pallet, 
+              disabled: group.querySelector('input')?.disabled || false, 
+              尺寸: sizeList 
+            });
+          }
         });
 
-        if (raw) result.push({ 日期: date, 客戶: customer, 品項: item, disabled: form.querySelector('input')?.disabled || false, 群組: groupList });
+        if (raw) {
+          result.push({ 
+            稱號: title,
+            日期: date, 
+            客戶: customer, 
+            品項: item, 
+            disabled: form.querySelector('input')?.disabled || false, 
+            群組: groupList 
+          });
+        }
       });
 
       return result;
@@ -263,9 +303,23 @@
 
       const table = document.createElement("table");
       table.className = "table-auto border border-collapse w-full text-xs";
+      
+      // 確保所有欄位都有值
+      const headers = ['稱號', '日期', '客戶', '品項', '件數', '總重', '板重', '淨重', '長', '寬', '高', '數量', '材積'];
+      
       table.innerHTML = `
-        <thead><tr class="bg-gray-300">${Object.keys(data[0]).map(k => `<th class="border px-1">${k}</th>`).join('')}</tr></thead>
-        <tbody>${data.map(r => `<tr>${Object.values(r).map(v => `<td class="border px-1">${v}</td>`).join('')}</tr>`).join('')}</tbody>
+        <thead>
+          <tr class="bg-gray-300">
+            ${headers.map(k => `<th class="border px-1">${k}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${data.map(r => `
+            <tr>
+              ${headers.map(h => `<td class="border px-1">${r[h] || ''}</td>`).join('')}
+            </tr>
+          `).join('')}
+        </tbody>
       `;
       out.appendChild(table);
     }
